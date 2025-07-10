@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistem Monitoring Jendela Rumah</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="text-center mb-8">
+            <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/fc623951-6541-4317-a47a-e7d2f1d819d3.png" alt="Monitoring Jendela Smart Home" class="mx-auto rounded-lg shadow-md mb-4 border-2 border-blue-100">
+            <h1 class="text-3xl font-bold text-gray-800">Sistem Monitoring Jendela Rumah</h1>
+            <p class="text-gray-600">Telegram langsung kabari kalau jendela kamu terbuka!</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-window-maximize mr-2 text-blue-500"></i>
+                Status Terkini
+            </h2>
+            <div id="status-container" class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-700">Status Jendela <span id="status-time" class="text-blue-600 text-xs">⟳ Memperbarui...</span>:</p>
+                    <p class="text-2xl font-bold" id="window-status">MEMUAT...</p>
+                </div>
+                <div class="h-20 w-20 rounded-full flex items-center justify-center" id="status-icon">
+                    <i class="fas fa-circle-notch fa-spin text-gray-400 text-4xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-chart-line mr-2 text-purple-500"></i>
+                Statistik
+            </h2>
+            <div class="grid grid-cols-2 gap-4 text-center">
+                <div class="bg-blue-50 p-4 rounded-lg transition hover:shadow-md">
+                    <p class="text-sm text-gray-600">Terbuka Hari Ini</p>
+                    <p class="text-2xl font-bold" id="open-count">0</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <p class="text-sm text-gray-600">Durasi Aman</p>
+                    <p class="text-2xl font-bold" id="safe-time">0 jam</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-bell mr-2 text-yellow-500"></i>
+                Riwayat Notifikasi
+            </h2>
+            <div class="space-y-3" id="notification-log"></div>
+        </div>
+
+        <div class="mt-8 text-center text-gray-500 text-sm">
+            <p class="mt-1">© 2025 - Sistem Keamanan Jendela Rumah Berbasis IoT by MFA</p>
+        </div>
+    </div>
+
+    <script>
+        const ESP_IP = "http://10.146.102.192/status"; 
+        let openCount = 0;
+        let lastStatus = '';
+        const safeStartTime = new Date();
+
+        function updateStatus() {
+            fetch(ESP_IP)
+                .then(response => response.text())
+                .then(data => {
+                    const isOpen = data.trim() === "open";
+
+                    const statusElement = document.getElementById('window-status');
+                    const iconElement = document.getElementById('status-icon');
+                    const timeElement = document.getElementById('status-time');
+                    const now = new Date();
+                    timeElement.textContent = `(Diperbarui: ${now.toLocaleTimeString()})`;
+
+                    if (isOpen) {
+                        statusElement.textContent = "TERBUKA ⚠️";
+                        statusElement.className = "text-2xl font-bold text-red-600";
+                        iconElement.innerHTML = '<i class="fas fa-exclamation-triangle text-red-500 text-4xl"></i>';
+                        if (lastStatus !== 'open') {
+                            addNotification("Peringatan! Jendela terbuka terdeteksi", now);
+                            openCount++;
+                            document.getElementById('open-count').textContent = openCount;
+                        }
+                        lastStatus = 'open';
+                    } else {
+                        statusElement.textContent = "TERTUTUP ✓";
+                        statusElement.className = "text-2xl font-bold text-green-600";
+                        iconElement.innerHTML = '<i class="fas fa-check-circle text-green-500 text-4xl"></i>';
+                        lastStatus = 'closed';
+                    }
+
+                    const safeHours = Math.floor((new Date() - safeStartTime) / 3600000);
+                    document.getElementById('safe-time').textContent = `${safeHours} jam`;
+                })
+                .catch(() => {
+                    document.getElementById('window-status').textContent = "❌ Tidak Terhubung";
+                    document.getElementById('status-icon').innerHTML = '<i class="fas fa-times-circle text-gray-500 text-4xl"></i>';
+                });
+        }
+
+        function addNotification(message, timestamp) {
+            const logElement = document.getElementById('notification-log');
+            const timeString = timestamp.toLocaleTimeString();
+            const item = document.createElement('div');
+            item.className = 'bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500 animate-fade-in';
+            item.innerHTML = `
+                <p class="font-medium text-gray-800">${message}</p>
+                <p class="text-sm text-gray-500">${timeString}</p>
+            `;
+            logElement.insertBefore(item, logElement.firstChild);
+            if (logElement.children.length > 5) logElement.removeChild(logElement.lastChild);
+        }
+
+        updateStatus();
+        setInterval(updateStatus, 3000);
+        setTimeout(() => {
+            addNotification("Sistem pemantauan aktif", new Date());
+        }, 1000);
+    </script>
+</body>
+</html>
